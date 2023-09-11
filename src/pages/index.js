@@ -1,118 +1,168 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'] })
+import { useRef, useEffect } from 'react';
+import { PerspectiveCamera, Scene, Color, BoxGeometry, MeshBasicMaterial, Mesh, Raycaster, Vector2, PlaneGeometry, AmbientLight, DirectionalLight, WebGLRenderer, EdgesGeometry, LineSegments, LineBasicMaterial } from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export default function Home() {
-  return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+  const containerRef = useRef(null);
+  let camera, scene, renderer;
+  let cameraControls;
+  let plane;
+  let pointer, raycaster, isShiftDown = false;
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+  let rollOverMesh, rollOverMaterial;
+  let cubeGeo, cubeMaterial;
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+  const objects = [];
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+  function init() {
+    camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.set(600, 800, 1300);
+    camera.lookAt(0, 0, 0);
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
+    scene = new Scene();
+    scene.background = new Color(0xf0f0f0);
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    // roll-over helpers
+    const rollOverGeo = new BoxGeometry(50, 50, 50);
+    rollOverMaterial = new MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
+    rollOverMesh = new Mesh(rollOverGeo, rollOverMaterial);
+    scene.add(rollOverMesh);
+
+    // cubes
+    cubeGeo = new BoxGeometry(50, 50, 50);
+    cubeMaterial = new MeshBasicMaterial({ color: 0xd1d5db });
+
+    raycaster = new Raycaster();
+    pointer = new Vector2();
+
+    // plane
+    const geometry = new PlaneGeometry(1000, 1000);
+    geometry.rotateX(- Math.PI / 2);
+    plane = new Mesh(geometry, new MeshBasicMaterial({ visible: false }));
+    scene.add(plane);
+    objects.push(plane);
+
+    // lights
+    const ambientLight = new AmbientLight(0x606060, 3);
+    scene.add(ambientLight);
+
+    const directionalLight = new DirectionalLight(0xffffff, 3);
+    directionalLight.position.set(1, 0.75, 0.5).normalize();
+    scene.add(directionalLight);
+
+    renderer = new WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    containerRef.current.appendChild(renderer.domElement);
+
+    // CONTROLS
+    cameraControls = new OrbitControls(camera, renderer.domElement);
+    cameraControls.addEventListener('change', render);
+  }
+
+  function render() {
+    renderer.render(scene, camera);
+  }
+
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    render();
+  }
+
+  function onPointerMove(event) {
+    pointer.set((event.clientX / window.innerWidth) * 2 - 1, - (event.clientY / window.innerHeight) * 2 + 1);
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const intersects = raycaster.intersectObjects(objects, false);
+
+    if (intersects.length > 0) {
+      const intersect = intersects[0];
+
+      rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
+      rollOverMesh.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+
+      render();
+    }
+  }
+
+  function onPointerDown(event) {
+    if (isShiftDown) {
+      pointer.set((event.clientX / window.innerWidth) * 2 - 1, - (event.clientY / window.innerHeight) * 2 + 1);
+
+      raycaster.setFromCamera(pointer, camera);
+
+      const intersects = raycaster.intersectObjects(objects, false);
+
+      if (intersects.length > 0) {
+        const intersect = intersects[0];
+
+        const isLeftDown = event.button === 0;
+        if (isLeftDown) {// create cube
+          const voxel = new Mesh(cubeGeo, cubeMaterial);
+          voxel.position.copy(intersect.point).add(intersect.face.normal);
+          voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+          scene.add(voxel);
+
+          voxel.add(new LineSegments(
+            new EdgesGeometry(voxel.geometry),
+            new LineBasicMaterial({ color: 0x4b5563 }),
+          ));
+
+          objects.push(voxel);
+        } else {// delete cube
+          if (intersect.object !== plane) {
+            scene.remove(intersect.object);
+
+            objects.splice(objects.indexOf(intersect.object), 1);
+          }
+        }
+        render();
+      }
+    }
+  }
+
+  function onDocumentKeyDown(event) {
+    switch (event.keyCode) {
+      case 16: isShiftDown = true; break;
+    }
+  }
+
+  function onDocumentKeyUp(event) {
+    switch (event.keyCode) {
+      case 16: isShiftDown = false; break;
+    }
+  }
+
+  const addEventListener = () => {
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    document.addEventListener('keyup', onDocumentKeyUp);
+    window.addEventListener('resize', onWindowResize);
+  };
+
+  const removeEventListener = () => {
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerdown', onPointerDown);
+    document.removeEventListener('keydown', onDocumentKeyDown);
+    document.removeEventListener('keyup', onDocumentKeyUp);
+    window.removeEventListener('resize', onWindowResize);
+  };
+
+  useEffect(() => {
+    init();
+    render();
+    addEventListener();
+    return () => {
+      containerRef.current.removeChild(renderer.domElement)
+      removeEventListener();
+    };
+  }, []);
+
+  return <div ref={containerRef} />;
 }
